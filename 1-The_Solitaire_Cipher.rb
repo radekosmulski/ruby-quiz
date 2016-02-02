@@ -1,7 +1,7 @@
 ##
 # Encrypting a string
 
-DECK = (1..52).to_a + ["A", "B"]
+deck = (1..52).to_a + ["A", "B"]
 
 ##
 # A bit of background on how the deck of cards works:
@@ -17,30 +17,83 @@ DECK = (1..52).to_a + ["A", "B"]
 # the letter (1 to 26), as are Hearts and Spades after subtracting 26 from
 # their value (27 to 52 drops to 1 to 26)."
 
-def split(str)
-  # discards non-letter characters
-  # uppercases all remaining letters
-  # splits msg into 5 character groups, padding last group with Xs if necessary
+def prepare_for_encryption(msg)
+  str = remove_non_letter_characters(msg)
+  str.upcase!
+  split_into_char_groups(str, 5, 'X')
 end
 
-def generate_keystream(str)
+def remove_non_letter_characters(str)
+  str.gsub(/[^a-z]/i, "")
 end
 
-def generate_keystream_letter(char)
+
+def split_into_char_groups(str, chars_per_group, padding_char)
+  ary = str.scan(/.{1,#{chars_per_group}}/)
+  ary[-1] = ary[-1].ljust(5, 'X')
+  ary.join(" ")
 end
 
-def convert_to_numbers(str)
-  # converts A-Z characters to numbers, with A=1, B=2, etc
+def convert_to_number char
+  char.ord - 64
 end
 
-def add_stream_numbers(str1, str2)
+def convert_to_letter n
+  n -= 26 if n > 26
+  (n+64).chr
+end
+
+def convert_to_numbers str
+  str.chars.map do |char| 
+    if char == " "
+      " "
+    else
+      " #{convert_to_number(char)} " 
+    end
+  end.join
+end
+
+def convert_to_letters str
+  str.scan(/\d+/).map do |str| 
+    convert_to_letter(str.to_i)
+  end.join.scan(/.{5}/).join(" ")
+end
+
+def generate_keystream(str, deck)
+  chars_needed = str.gsub(/\s/, "").size
+  keystream = ""
+  
+  deck = key(deck)
+
+  until keystream.size == chars_needed
+    move_joker_A(deck)
+    move_joker_B(deck)
+    deck = triple_cut(deck)
+    deck = count_cut(deck)
+    output_letter = find_output_letter(deck)
+    keystream += output_letter if output_letter
+  end
+  
+  keystream.scan(/.{5}/).join(" ")
+end
+
+def add_streams(keystream1, keystream2)
   # presented with two strings containing numbers in groupings seperated by
   # spaces, will sum each pair of numbers together subtracting 26 should
   # a sum exceed 26
+  keystream1 = keystream1.split.map { |str| str.to_i }
+  keystream2 = keystream2.split.map { |str| str.to_i }
+  
+  keystream1.zip(keystream2).map do |v1, v2|
+    v1 += v2 
+    v1 -= 26 if v1 > 26
+    " #{v1} "
+  end.each_slice(5).to_a.map { |slice| slice.join() }.join(" ")
 end
 
 def key(deck)
   # do nothing - we do not want the deck keyed for testing purposes
+   deck
 end
 
 def move_joker_A(deck)
@@ -87,16 +140,45 @@ def triple_cut(deck)
   deck.concat(cards_above_top_joker)
 end
 
+def count_cut(deck)
+  # Perform a count cut using the value of the bottom card. Cut the bottom
+  # card's value in cards off the top of the deck and reinsert them just above
+  # the bottom card.
+  cut_value = card_value(deck[-1])
 
-msg = "something"
+  cards_off_top = deck.slice!(0...cut_value)
+  deck.insert(-2, *cards_off_top)
+end
 
-def encrypt msg
-  msg = split msg
-  keystream = generate_keystream msg
+def card_value(card)
+  card_value = card.to_i
+
+  return 53 if card_value == 0 # 0 means we got one of the jokers
+  card_value
+end
+
+def find_output_letter(deck)
+  cards_to_count_down = card_value(deck[0])
+  output_card = deck[cards_to_count_down]
+
+  if output_card == 'A' or output_card == 'B'
+    nil
+  else
+    convert_to_letter(card_value(output_card))
+  end
+end
+
+def encrypt msg, deck
+  msg = prepare_for_encryption msg
+  keystream = generate_keystream msg, deck
 
   msg = convert_to_numbers msg
   keystream = convert_to_numbers keystream
+  
+  str = add_streams msg, keystream
 
-  add_stream_numbers msg, keystream
+  convert_to_letters str
 end
 
+msg = "YOURC IPHER ISWOR KINGX"
+puts encrypt(msg, deck)
