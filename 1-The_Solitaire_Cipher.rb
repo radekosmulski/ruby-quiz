@@ -1,34 +1,34 @@
+require 'forwardable'
+
 class Deck
+  extend Forwardable
+
+  def_delegator :@cards, :[]
+  attr_accessor :cards
+
   def initialize
     @cards = (1..52).to_a + ["A", "B"] # A and B being jokers,
                                        # both with a value of 53
   end
 
-  def move_joker_A
-    # Moves joker A down 1 card
-    joker_i = @cards.index("A")
-    if joker_i == 53
-      @cards.pop
-      @cards.insert(1, "A")
+  def move_down(card)
+    # moves joker down 1 card
+    index = cards.index(card)
+
+    if index + 1 > 53
+      cards[1..1] = cards[-1], cards[1]
+      cards.pop
     else
-      @cards.delete_at(joker_i)
-      @cards.insert(joker_i + 1, "A")
+      cards[index], cards[index+1] = cards[index+1], cards[index]
     end
   end
 
+  def move_joker_A
+    move_down('A')
+  end
+
   def move_joker_B
-    # Moves joker B down 2 cards
-    joker_i = @cards.index("B")
-    if joker_i == 53
-      @cards.pop
-      @cards.insert(2, "B")
-    elsif joker_i == 52
-      @cards.delete_at(joker_i)
-      @cards.insert(1, "B")
-    else
-      @cards.delete_at(joker_i)
-      @cards.insert(joker_i + 2, "B")
-    end
+    2.times { move_down('B') }
   end
 
   def triple_cut
@@ -41,7 +41,7 @@ class Deck
     smaller_i = i_A < i_B ? i_A : i_B
     bigger_i = smaller_i == i_B ? i_A : i_B
 
-    cards_above_top_joker = @cards.slice!(0..smaller_i-1)
+    cards_above_top_joker = @cards.slice!(0, smaller_i)
     cards_below_bottom_joker = @cards.slice!(bigger_i+1-smaller_i..54)
 
     @cards.unshift(*cards_below_bottom_joker)
@@ -54,7 +54,7 @@ class Deck
     # the bottom card
     cut_value = card_value(@cards[-1])
 
-    cards_off_top = @cards.slice!(0...cut_value)
+    cards_off_top = @cards.slice!(0, cut_value)
     @cards.insert(-2, *cards_off_top)
   end
 
@@ -66,7 +66,7 @@ class Deck
   end
 
   def output_card
-    @_output_card ||= @cards[card_value(top_card)]
+    @cards[card_value(top_card)]
   end
 
   def output_card_value
@@ -199,6 +199,14 @@ msg = "I like milk chocolate!"
 puts "Original message: #{msg}"
 encrypted_msg = e.encrypt msg
 puts "Encrypted message: #{encrypted_msg}"
+e.reset_deck
+decrypted_msg =  e.decrypt encrypted_msg
+puts "Decrypted message: #{decrypted_msg}"
+
+puts "----------------------------"
+
+encrypted_msg = "CLEPK HHNIY CFPWH FDFEH"
+puts "Encrypted message: CLEPK HHNIY CFPWH FDFEH"
 e.reset_deck
 decrypted_msg =  e.decrypt encrypted_msg
 puts "Decrypted message: #{decrypted_msg}"
