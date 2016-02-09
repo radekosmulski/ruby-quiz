@@ -1,6 +1,8 @@
 require 'forwardable'
 
 class Deck
+  # not using Forwardable just yet but likely will as I continue
+  # to refactor this
   extend Forwardable
 
   def_delegator :@cards, :[]
