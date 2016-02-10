@@ -6,10 +6,8 @@ SecretSanta = Struct.new(:first_name, :last_name, :email) do
     "#{first_name} #{last_name}"
   end
 
-  def same_family_as?(santa)
-    # this will also capture a situation where a person
-    # gets assigned to themselves
-    last_name == santa.last_name
+  def can_be_santa_of?(santa)
+    last_name != santa.last_name
   end
 end
 
@@ -25,8 +23,8 @@ end
 while true do
   assignments = santa_pick_pool.dup.shuffle
 
-  break if santa_pick_pool.zip(assignments).none? do |santa, giftee| 
-    santa.same_family_as? giftee
+  break if santa_pick_pool.zip(assignments).all? do |santa, giftee| 
+    santa.can_be_santa_of? giftee
   end
 end
 
