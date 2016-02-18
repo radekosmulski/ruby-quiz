@@ -149,7 +149,7 @@ class Game
   def play
     until map.victory?
       puts "\n#{map}\n"
-      puts "Use WSAD keys to move, press x to exit or r to restart level"
+      puts "Use WSAD or HJKL keys to move, press x to exit or r to restart level"
       begin
         move(read_char)
       rescue MoveNotPermitted
@@ -167,15 +167,13 @@ class Game
   # Move player with the WSAD buttons
   def move(char)
     case char.downcase
-    when 'w'
+    when 'w', 'k'
       map.move_player(:north)
-    when 's'
+    when 's', 'j'
       map.move_player(:south)
-    when 'a'
+    when 'a', 'h'
       map.move_player(:west)
-    when 'd'
-      map.move_player(:east)
-    when 'd'
+    when 'd', 'l'
       map.move_player(:east)
     when 'r'
       map.reset
