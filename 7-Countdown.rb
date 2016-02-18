@@ -10,7 +10,7 @@
 #
 # We then take each of those arrays and
 # for each of them we generate all the possible groupings of parentheses /
-# groupings of order in which the terms could be combined via mathematical
+# orders in which the terms could be combined via mathematical
 # operations.
 #
 # This, assuming source numbers are all unique, gives us 224876 unique partitions.
@@ -18,11 +18,23 @@
 # We then take each of those partitions and transform them into string such as
 # "(10 2) 3 (8 5 100)"
 #
-# Now it is just a matter of gene
+# Now it is just a matter of replacing each whitespace with a mthematical operator
+# and evaluating the expressions...
+#
+# (there will be unnecessary duplicated calculations where parenthesis do not
+# change anything such as "(1 + 2) + 3" and "1 + (2 + 3)")
+#
+# Also, this approach will give you the right answer but it is so inefficient
+# and the search space is so big you might want to grab a coffee... preferably
+# a tall one :P Given the parentheses and strings approach there is no simple
+# way that I can think of to prune the search space...
 
 require 'set'
 
 class Partitions
+  # this whole class is a mess... would warrant refactoring, likely to Partition
+  # class and having some reasonable way of working with collections of instances
+  # of class Partition...
   def initialize(permutations)
     @partitions = Set.new
 
@@ -91,8 +103,35 @@ class Partitions
   end
 end
 
-module CalcGenerator
-  @@calc = 123
+class Calculation
+  def initialize(calc_string)
+    @str = calc_string
+  end
+
+  def value
+    @value ||= eval(@str)
+  end
+
+  def str
+    @str
+  end
+end
+
+OPERATIONS = ['+', '-', '*', '.to_f/']
+def str_to_calcs(str)
+  calcs = [str]
+  results = []
+
+  5.times do
+    calcs.each do |str|
+      OPERATIONS.each do |op|
+        results << str.sub(/ /, op)
+      end
+    end
+    calcs = results
+    results = []
+  end
+  calcs.map { |str| Calculation.new(str) }
 end
 
 rng = Random.new
@@ -108,10 +147,39 @@ permutations = []
 
 1.upto(6) { |i| permutations += source_numbers.permutation(i).to_a }
 
-p permutations.count
-
 partitions = Partitions.new(permutations)
-strs = partitions.to_str_ary
 
-p strs[-1]
-p CalcGenerator.calc
+strs = partitions.to_str_ary
+# we have a large array of strs here, where each
+# string in the array is of the format
+# "(1 1) 1 (1 1 1)" (parentheses can vary), we now
+# need to replace blank spaces with mathematical
+# operations...
+
+calculations = []
+strs.each_with_index do |str, i|
+  calculations.concat(str_to_calcs(str))
+end
+
+delta = Float::INFINITY
+solutions = []
+
+calculations.each do |c|
+  next if c.value < 100
+  next if c.value % 1 != 0 # we don't want fractional results
+
+  current_delta = (target - c.value).abs
+
+  if current_delta < delta
+    delta = current_delta
+    solutions = [c]
+  elsif current_delta == delta
+    solutions << c
+  end
+end
+
+puts "Smallest delta achieved: #{delta}"
+puts "Solutions found: #{solutions.count}"
+puts "10 example solutions (if at least that many were found):"
+solutions.take(10).each_with_index { |s, i| puts "#{i + 1}. #{s.str}" }
+
