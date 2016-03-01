@@ -1,10 +1,13 @@
 class Square
-  attr_reader :row, :column, :visible
-  attr_accessor :north, :south, :east, :west, :blank
+  attr_reader :row, :column
+  # blank is a convention I assumed for marking cells where
+  # letters can be entered, for lack of a better word...
+  attr_accessor :north, :south, :east, :west, :blank, :visible
 
   def initialize(row, column, blank = true)
     @row, @column = row, column
     @blank = blank
+    @visible = true
   end
 
   def neighbors
@@ -16,9 +19,23 @@ class Square
     list
   end
 
-  def visible
-    return true if blank
-    return false
+  def has_path_to_outside?
+    # Returns true if one can walk from this square to the outer regions
+    # of the crossword stepping on just nonblank squares.
+    visited_squares = []
+
+    squares_to_visit = neighbors.select { |n| !n.blank }
+
+    until squares_to_visit.empty?
+      sq = squares_to_visit.pop
+      visited_squares << sq
+
+      return true if sq.neighbors.count < 4 # we've reached a non-blank edge sq
+
+      visited_squares << sq
+      nonblank_neighbors = sq.neighbors.select { |n| !n.blank && !visited_squares.include?(n) }
+      squares_to_visit += nonblank_neighbors
+    end
   end
 end
 
@@ -53,11 +70,25 @@ class Crossword
       square.west = self[row, col - 1]
       square.east = self[row, col + 1]
     end
+
+    mark_visible
+  end
+
+  def mark_visible
+    each_square do |sq|
+      if sq.blank
+        sq.visible = true
+      elsif sq.neighbors.count < 4
+        sq.visible = false
+      else
+        sq.visible = sq.has_path_to_outside? ? false : true
+      end
+    end
   end
 
   def [](row, column)
     return nil unless row.between?(0, @rows - 1)
-    return nil unless column.between?(0, @grid[row].count - 1)
+    return nil unless column.between?(0, @columns - 1)
     @grid[row][column]
   end
 
@@ -116,7 +147,7 @@ class Crossword
     if sq.visible
       '#'
     else
-      if sq.west.visible || (sq.north && sq.north.visible) \
+      if (sq.west && sq.west.visible) || (sq.north && sq.north.visible) \
               || (sq.north && sq.north.west && sq.north.west.visible)
         '#'
       else
@@ -151,7 +182,7 @@ class Crossword
     if sq.visible
       '#'
     else
-      if sq.west.visible
+      if (sq.west && sq.west.visible)
         '#'
       else
         ' '
@@ -161,7 +192,7 @@ class Crossword
 
   def mid_mid(sq)
     if sq.visible
-      '    '
+      sq.blank ? '    ' : '####'
     else
       '    '
     end
